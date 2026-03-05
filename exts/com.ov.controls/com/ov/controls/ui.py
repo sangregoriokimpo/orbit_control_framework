@@ -155,6 +155,11 @@ class ControlsUI:
                                 ui.CheckBox(model=self._viz_model)
                                 ui.Label("Show orbit paths", width=130)
                                 ui.Button("Redraw All", clicked_fn=self._on_redraw_viz)
+                            with ui.HStack():
+                                ui.Label("Viz update interval (frames)", width=150)
+                                self._viz_interval = ui.SimpleIntModel(10)
+                                ui.IntField(model=self._viz_interval)
+                                ui.Button("Set", width=40, clicked_fn=self._on_set_viz_interval)
                             self._state_model = ui.SimpleStringModel("–")
                             ui.StringField(model=self._state_model, multiline=True,
                                            height=60, read_only=True)
@@ -287,6 +292,12 @@ class ControlsUI:
         dv = float(self._dvy.get_value_as_float())
         self._ext.apply_impulse(p, (0.0, -dv, 0.0))
         self._set_status(f"-Prograde {dv} applied to {p}")
+
+    def _on_set_viz_interval(self):
+        val = max(1, int(self._viz_interval.get_value_as_int()))
+        self._viz_interval.set_value(val)
+        self._ext._viz_update_interval = val
+        self._set_status(f"Viz interval set to {val} frames")
 
     def _on_dock(self):
         p   = self._selected.get_value_as_string()

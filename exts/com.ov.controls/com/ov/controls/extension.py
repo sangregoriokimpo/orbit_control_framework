@@ -1,5 +1,6 @@
 import omni.ext
 import omni.kit.context_menu
+import omni.kit.app
 from com.ov.core.service import get_orbit_service
 
 from .ui import ControlsUI
@@ -14,16 +15,52 @@ class OrbitControlsExtension(omni.ext.IExt):
         self._viz_enabled = False
         self._viz_paths: dict = {}
         self._menu_handles = []
+        self._frame_count = 0
+        self._viz_update_interval = 1  # redraw every N frames
+
+        # subscribe to app update loop
+        self._app = omni.kit.app.get_app()
+        self._update_sub = self._app.get_update_event_stream().create_subscription_to_pop(
+            self._on_update
+        )
+
         self._register_context_menu()
         print("[OrbitControls] started")
 
     def on_shutdown(self):
+        if self._update_sub:
+            self._update_sub.unsubscribe()
+            self._update_sub = None
         self._unregister_context_menu()
         remove_all_orbit_paths()
         if self._ui:
             self._ui.destroy()
             self._ui = None
         print("[OrbitControls] shutdown")
+
+    def _on_update(self, e):
+        if not self._viz_enabled:
+            return
+        self._frame_count += 1
+        if self._frame_count % self._viz_update_interval == 0:
+            self.refresh_viz()
+
+    # def on_startup(self, ext_id: str):
+    #     self._svc = get_orbit_service()
+    #     self._ui = ControlsUI(self)
+    #     self._viz_enabled = False
+    #     self._viz_paths: dict = {}
+    #     self._menu_handles = []
+    #     self._register_context_menu()
+    #     print("[OrbitControls] started")
+
+    # def on_shutdown(self):
+    #     self._unregister_context_menu()
+    #     remove_all_orbit_paths()
+    #     if self._ui:
+    #         self._ui.destroy()
+    #         self._ui = None
+    #     print("[OrbitControls] shutdown")
 
     def set_viz_enabled(self, enabled: bool):
         self._viz_enabled = enabled
