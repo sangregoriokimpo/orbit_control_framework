@@ -1,0 +1,15 @@
+[package]
+version = "0.1.0"
+title = "Orbit Controls"
+description = "UI to add orbiting bodies + apply impulses, docking, and PD hold. Depends on Orbit Core."
+authors = ["SLI"]
+category = "Simulation"
+keywords = ["isaac-sim", "orbit", "controls", "ui"]
+
+# [dependencies]
+# "omni.ui" = {}
+# "omni.kit.app" = {}
+# "com.SLI.orbit.core" = {}   # IMPORTANT: depends on core
+
+[[python.module]]
+name = "com.ov.controls"
