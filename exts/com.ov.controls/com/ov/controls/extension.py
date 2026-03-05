@@ -1,6 +1,8 @@
 import omni.ext
 import omni.kit.context_menu
 import omni.kit.app
+from omni.usd import StageEventType
+
 from com.ov.core.service import get_orbit_service
 
 from .ui import ControlsUI
@@ -23,6 +25,9 @@ class OrbitControlsExtension(omni.ext.IExt):
         self._update_sub = self._app.get_update_event_stream().create_subscription_to_pop(
             self._on_update
         )
+        self._stage_event_sub = omni.usd.get_context().get_stage_event_stream().create_subscription_to_pop(
+            self._on_stage_event, name="OrbitControls.StageEvent"
+        )
 
         self._register_context_menu()
         print("[OrbitControls] started")
@@ -37,6 +42,9 @@ class OrbitControlsExtension(omni.ext.IExt):
             self._ui.destroy()
             self._ui = None
         print("[OrbitControls] shutdown")
+        if self._stage_event_sub:
+            self._stage_event_sub.unsubscribe()
+            self._stage_event_sub = None
 
     def _on_update(self, e):
         if not self._viz_enabled:
@@ -44,6 +52,18 @@ class OrbitControlsExtension(omni.ext.IExt):
         self._frame_count += 1
         if self._frame_count % self._viz_update_interval == 0:
             self.refresh_viz()
+    
+    def _on_stage_event(self, e):
+        from omni.usd import StageEventType
+        if e.type == int(StageEventType.OPENED) or e.type == int(StageEventType.CLOSED):
+            # clear all bodies from service
+            for p in list(self._svc.list_bodies()):
+                self._svc.remove_body(p)
+            # clear viz tracking (prims are gone with the old stage)
+            self._viz_paths.clear()
+            from .visualizer import _body_colors
+            _body_colors.clear()
+            print("[OrbitControls] Stage changed — cleared all bodies and viz")
 
     # def on_startup(self, ext_id: str):
     #     self._svc = get_orbit_service()
