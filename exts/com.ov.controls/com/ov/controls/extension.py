@@ -37,7 +37,11 @@ class OrbitControlsExtension(omni.ext.IExt):
             self._update_sub.unsubscribe()
             self._update_sub = None
         self._unregister_context_menu()
-        remove_all_orbit_paths()
+        # remove_all_orbit_paths()
+        try:
+            remove_all_orbit_paths()
+        except Exception:
+            pass
         if self._ui:
             self._ui.destroy()
             self._ui = None
@@ -55,15 +59,35 @@ class OrbitControlsExtension(omni.ext.IExt):
     
     def _on_stage_event(self, e):
         from omni.usd import StageEventType
-        if e.type in (int(StageEventType.OPENED), int(StageEventType.CLOSED)):
-            for p in list(self._svc.list_bodies()):
-                self._svc.remove_body(p)
+        t = e.type
+        # if e.type in (int(StageEventType.OPENED), int(StageEventType.CLOSED)):
+        #     for p in list(self._svc.list_bodies()):
+        #         self._svc.remove_body(p)
+        if t == int(StageEventType.OPENED):
+            # Core already restored bodies - just reset viz and redraw
             self._viz_paths.clear()
             try:
                 from .visualizer import _body_colors
                 _body_colors.clear()
             except Exception:
                 pass
+            if self._viz_enabled:
+                self.refresh_viz()
+
+        elif t == int(StageEventType.CLOSED):
+            # Just clear viz tracking, don't touch service bodies
+            self._viz_paths.clear()
+            try:
+                from .visualizer import _body_colors
+                _body_colors.clear()
+            except Exception:
+                pass            
+            # self._viz_paths.clear()
+            # try:
+            #     from .visualizer import _body_colors
+            #     _body_colors.clear()
+            # except Exception:
+            #     pass
             print("[OrbitControls] Stage changed - cleared all bodies and viz")
         # if e.type == int(StageEventType.OPENED) or e.type == int(StageEventType.CLOSED):
         #     # clear all bodies from service
