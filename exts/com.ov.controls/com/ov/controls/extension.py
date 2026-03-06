@@ -55,15 +55,25 @@ class OrbitControlsExtension(omni.ext.IExt):
     
     def _on_stage_event(self, e):
         from omni.usd import StageEventType
-        if e.type == int(StageEventType.OPENED) or e.type == int(StageEventType.CLOSED):
-            # clear all bodies from service
+        if e.type in (int(StageEventType.OPENED), int(StageEventType.CLOSED)):
             for p in list(self._svc.list_bodies()):
                 self._svc.remove_body(p)
-            # clear viz tracking (prims are gone with the old stage)
             self._viz_paths.clear()
-            from .visualizer import _body_colors
-            _body_colors.clear()
-            print("[OrbitControls] Stage changed — cleared all bodies and viz")
+            try:
+                from .visualizer import _body_colors
+                _body_colors.clear()
+            except Exception:
+                pass
+            print("[OrbitControls] Stage changed - cleared all bodies and viz")
+        # if e.type == int(StageEventType.OPENED) or e.type == int(StageEventType.CLOSED):
+        #     # clear all bodies from service
+        #     for p in list(self._svc.list_bodies()):
+        #         self._svc.remove_body(p)
+        #     # clear viz tracking (prims are gone with the old stage)
+        #     self._viz_paths.clear()
+        #     from .visualizer import _body_colors
+        #     _body_colors.clear()
+        #     print("[OrbitControls] Stage changed — cleared all bodies and viz")
 
     # def on_startup(self, ext_id: str):
     #     self._svc = get_orbit_service()
