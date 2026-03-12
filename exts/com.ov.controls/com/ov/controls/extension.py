@@ -36,8 +36,10 @@ class OrbitControlsExtension(omni.ext.IExt):
         if self._update_sub:
             self._update_sub.unsubscribe()
             self._update_sub = None
+        if self._stage_event_sub:
+            self._stage_event_sub.unsubscribe()
+            self._stage_event_sub = None
         self._unregister_context_menu()
-        # remove_all_orbit_paths()
         try:
             remove_all_orbit_paths()
         except Exception:
@@ -46,9 +48,6 @@ class OrbitControlsExtension(omni.ext.IExt):
             self._ui.destroy()
             self._ui = None
         print("[OrbitControls] shutdown")
-        if self._stage_event_sub:
-            self._stage_event_sub.unsubscribe()
-            self._stage_event_sub = None
 
     def _on_update(self, e):
         if not self._viz_enabled:

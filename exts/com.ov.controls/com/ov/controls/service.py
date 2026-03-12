@@ -1,9 +1,18 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple, List
+import math
 
 from .orbit_math import Vec3, TwoBodyRK4, FixedStepClock, circular_orbit_ic, coe_to_rv
+'''
 
+THIS IS A DUPLICATE FROM ORBIT CORE FOR DEBUGGING, CHANGES HERE WONT APPLY UNLESS YOU CARRY THEM TO ORBIT CORE
+
+I KEPT IT HERE BECAUSE IM SCARED OF DELETING CODE
+
+- GREGORY JABIDO
+
+'''
 @dataclass
 class OrbitBody:
     prim_path: str
@@ -100,6 +109,8 @@ class OrbitService:
         b = self._bodies.get(prim_path)
         if not b:
             return
+        b._pre_dock_r = b.r   
+        b._pre_dock_v = b.v
         b.control_mode = "dock"
         b.target_offset = offset
 
@@ -107,8 +118,49 @@ class OrbitService:
         b = self._bodies.get(prim_path)
         if not b:
             return
-        if b.control_mode == "dock":
-            b.control_mode = "free"
+        if b.control_mode != "dock":
+            return
+        b.control_mode = "free"
+        pre_r = getattr(b, "_pre_dock_r", None)
+        pre_v = getattr(b, "_pre_dock_v", None)
+        print(f"[clear_dock] pre_r={pre_r} pre_v={pre_v} current_r={b.r} current_v={b.v}")
+        b.r = pre_r if pre_r is not None else b.r
+        b.v = pre_v if pre_v is not None else b.v
+        print(f"[clear_dock] restored r={b.r} v={b.v}")
+
+
+        # rx, ry, rz = b.r
+        # rmag = math.sqrt(rx*rx + ry*ry + rz*rz)
+        # if rmag < 1e-6:
+        #     b.v = (0.0, 0.0, 0.0)
+        #     return
+
+        # vc = math.sqrt(b.mu / rmag)
+
+        # rhat = norm((rx, ry, rz))
+        # up = (0.0, 0.0, 1.0)
+        # if abs(rhat[2]) > 0.99:   
+        #     up = (0.0, 1.0, 0.0)
+
+        # tangent = self.norm(self.cross(rhat, up))
+        # b.v = (vc * tangent[0], vc * tangent[1], vc * tangent[2])
+
+
+    # def cross(a, b):
+    #     return (a[1]*b[2] - a[2]*b[1],
+    #             a[2]*b[0] - a[0]*b[2],
+    #             a[0]*b[1] - a[1]*b[0])
+    # def norm(v):
+    #     m = math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
+    #     return (v[0]/m, v[1]/m, v[2]/m) if m > 1e-12 else (1.0, 0.0, 0.0)
+
+
+    # def clear_dock(self, prim_path: str):
+    #     b = self._bodies.get(prim_path)
+    #     if not b:
+    #         return
+    #     if b.control_mode == "dock":
+    #         b.control_mode = "free"
 
     def set_pd_hold(self, prim_path: str, target_offset: Vec3, kp: float, kd: float, a_max: float = 0.0):
         b = self._bodies.get(prim_path)
@@ -182,3 +234,11 @@ def get_orbit_service() -> OrbitService:
     if _SERVICE is None:
         _SERVICE = OrbitService()
     return _SERVICE
+
+def cross(a, b):
+    return (a[1]*b[2] - a[2]*b[1],
+            a[2]*b[0] - a[0]*b[2],
+            a[0]*b[1] - a[1]*b[0])
+def norm(v):
+    m = math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
+    return (v[0]/m, v[1]/m, v[2]/m) if m > 1e-12 else (1.0, 0.0, 0.0)

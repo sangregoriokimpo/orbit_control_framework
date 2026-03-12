@@ -441,7 +441,8 @@ class ControlsUI:
                                 ui.Button("-Prograde (-Y)", clicked_fn=self._on_prograde_neg)
 
                     ui.Separator()
-
+                    ui.Button("DEBUG DOCK STATE", clicked_fn=self._debug_dock)
+                    ui.Separator()
                     with ui.CollapsableFrame("Dock / PD Hold", collapsed=False):
                         with ui.VStack(spacing=6):
                             ui.Label("Target offset (attractor-relative)")
@@ -483,9 +484,26 @@ class ControlsUI:
                     ui.Spacer(height=12)
 
     def destroy(self):
+        if hasattr(self, "_status_sub"):
+            self._status_sub.unsubscribe()
+        if hasattr(self, "_viz_sub"):
+            self._viz_sub.unsubscribe()
         if self._win:
             self._win.visible = False
             self._win = None
+
+    def _debug_dock(self):
+        p = self._get_selected_path()
+        b = self._ext._svc.get_body(p)
+        if not b:
+            print(f"[DEBUG] no body at '{p}'")
+            return
+        print(f"[DEBUG] mode={b.control_mode}")
+        print(f"[DEBUG] r={b.r}")
+        print(f"[DEBUG] v={b.v}")
+        print(f"[DEBUG] target_offset={b.target_offset}")
+        print(f"[DEBUG] _pre_dock_r={getattr(b, '_pre_dock_r', 'NOT SET')}")
+        print(f"[DEBUG] _pre_dock_v={getattr(b, '_pre_dock_v', 'NOT SET')}")
 
     def _on_add_circular(self):
         body   = self._body_path.get_value_as_string()
