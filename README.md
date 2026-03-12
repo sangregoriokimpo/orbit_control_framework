@@ -3,7 +3,6 @@
 Two-extension Isaac Sim framework for physically accurate two-body orbital mechanics with real-time control.
 
 <img src="image.png" alt="Alt text" style="display: block; margin: auto;">
----
 
 ## Architecture
 
