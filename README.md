@@ -1,6 +1,6 @@
 # Orbit Control Framework
 
-Two-extension Isaac Sim framework for physically accurate two-body orbital mechanics with real-time control.
+Two-extension Isaac Sim framework for physically accurate two-body orbital mechanics with real-time control. It works for more than two orbiting bodies, but this extension is mainly for two body orbits. 
 
 <img src="image.png" alt="Alt text" style="display: block; margin: auto;">
 
