@@ -224,6 +224,8 @@ class OrbitService:
 
             # Integrate (gravity + a_cmd)
             b.r, b.v = b._dyn.rk4_step(b.r, b.v, b.dt_sim, a_cmd=a_cmd)
+            if a_cmd != (0.0, 0.0, 0.0):
+                b._orbit_dirty = True
 
 
 # Singleton getter (used by controls extension)

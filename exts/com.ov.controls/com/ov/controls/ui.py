@@ -1,5 +1,8 @@
 import omni.ui as ui
 import omni.usd
+from .visualizer import draw_orbit_path
+from .visualizer import set_live_update_enabled
+
 
 PLANES = ["xy", "xz", "yz"]
 
@@ -400,24 +403,28 @@ class ControlsUI:
                                 # ui.Button("◎", width=28, clicked_fn=self._pick_selected,
                                 #           tooltip="Pick selected prim from viewport")
                             with ui.HStack():
+                                ui.Button("Show Path",  clicked_fn=self._on_show_path)
+                                ui.Button("Hide Path",  clicked_fn=self._on_hide_path)
+                                ui.Button("Hide All",   clicked_fn=self._on_hide_all)
+                            with ui.HStack():
                                 ui.Button("Remove Body",   clicked_fn=self._on_remove)
                                 ui.Button("Refresh State", clicked_fn=self._refresh_state)
-                            with ui.HStack():
-                                self._viz_model = ui.SimpleBoolModel(False)
-                                ui.CheckBox(model=self._viz_model)
-                                ui.Label("Show orbit paths", width=130)
-                                ui.Button("Redraw All", clicked_fn=self._on_redraw_viz)
-                            with ui.HStack():
-                                ui.Label("Viz update interval (frames)", width=150)
-                                self._viz_interval = ui.SimpleIntModel(10)
-                                ui.IntField(model=self._viz_interval)
-                                ui.Button("Set", width=40, clicked_fn=self._on_set_viz_interval)
+                            # with ui.HStack():
+                            #     self._viz_model = ui.SimpleBoolModel(False)
+                            #     ui.CheckBox(model=self._viz_model)
+                            #     ui.Label("Show orbit paths", width=130)
+                            #     ui.Button("Redraw All", clicked_fn=self._on_redraw_viz)
+                            # with ui.HStack():
+                            #     ui.Label("Viz update interval (frames)", width=150)
+                            #     self._viz_interval = ui.SimpleIntModel(10)
+                            #     ui.IntField(model=self._viz_interval)
+                            #     ui.Button("Set", width=40, clicked_fn=self._on_set_viz_interval)
                             self._state_model = ui.SimpleStringModel("–")
                             ui.StringField(model=self._state_model, multiline=True,
                                            height=60, read_only=True)
-                            self._viz_sub = self._viz_model.subscribe_value_changed_fn(
-                                lambda m: self._ext.set_viz_enabled(m.get_value_as_bool())
-                            )
+                            # self._viz_sub = self._viz_model.subscribe_value_changed_fn(
+                            #     lambda m: self._ext.set_viz_enabled(m.get_value_as_bool())
+                            # )
 
                     ui.Separator()
 
@@ -486,8 +493,8 @@ class ControlsUI:
     def destroy(self):
         if hasattr(self, "_status_sub"):
             self._status_sub.unsubscribe()
-        if hasattr(self, "_viz_sub"):
-            self._viz_sub.unsubscribe()
+        # if hasattr(self, "_viz_sub"):
+        #     self._viz_sub.unsubscribe()
         if self._win:
             self._win.visible = False
             self._win = None
@@ -586,11 +593,11 @@ class ControlsUI:
         self._ext.apply_impulse(p, (0.0, -dv, 0.0))
         self._set_status(f"-Prograde {dv} applied to {p}")
 
-    def _on_set_viz_interval(self):
-        val = max(1, int(self._viz_interval.get_value_as_int()))
-        self._viz_interval.set_value(val)
-        self._ext._viz_update_interval = val
-        self._set_status(f"Viz interval set to {val} frames")
+    # def _on_set_viz_interval(self):
+    #     val = max(1, int(self._viz_interval.get_value_as_int()))
+    #     self._viz_interval.set_value(val)
+    #     self._ext._viz_update_interval = val
+    #     self._set_status(f"Viz interval set to {val} frames")
 
     def _on_dock(self):
         p   = p = self._get_selected_path()
@@ -633,12 +640,12 @@ class ControlsUI:
         except Exception as ex:
             self._set_status(str(ex), ok=False)
 
-    def _on_redraw_viz(self):
-        try:
-            self._ext.refresh_viz()
-            self._set_status("Orbit paths redrawn")
-        except Exception as ex:
-            self._set_status(str(ex), ok=False)
+    # def _on_redraw_viz(self):
+    #     try:
+    #         self._ext.refresh_viz()
+    #         self._set_status("Orbit paths redrawn")
+    #     except Exception as ex:
+    #         self._set_status(str(ex), ok=False)
 
     def _on_list(self):
         bodies = self._ext.print_bodies()
@@ -648,3 +655,30 @@ class ControlsUI:
         else:
             self._state_model.set_value("No bodies registered")
             self._set_status("No bodies registered", ok=False)
+    
+    def _on_show_path(self):
+        p = self._get_selected_path()
+        try:
+            set_live_update_enabled(True)
+            self._ext.draw_selected_viz(p)
+            self._set_status(f"Showing path for {p}")
+        except Exception as ex:
+            self._set_status(str(ex), ok=False)
+
+    def _on_hide_path(self):
+        p = self._get_selected_path()
+        try:
+            self._ext.remove_viz(p)
+            self._set_status(f"Hidden path for {p}")
+        except Exception as ex:
+            self._set_status(str(ex), ok=False)
+
+    def _on_hide_all(self):
+        try:
+            from .visualizer import remove_all_orbit_paths, set_live_update_enabled
+            set_live_update_enabled(False)
+            remove_all_orbit_paths()
+            self._ext._viz_paths.clear()
+            self._set_status("All paths hidden")
+        except Exception as ex:
+            self._set_status(str(ex), ok=False)

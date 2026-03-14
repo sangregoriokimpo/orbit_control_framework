@@ -2,11 +2,18 @@ import omni.ext
 import omni.kit.context_menu
 import omni.kit.app
 from omni.usd import StageEventType
+from omni.usd import StageEventType
+from .visualizer import _body_colors
+from .visualizer import draw_orbit_path
+
+
 
 from com.ov.core.service import get_orbit_service
 
 from .ui import ControlsUI
-from .visualizer import draw_orbit_path, remove_orbit_path, remove_all_orbit_paths
+# from .visualizer import draw_orbit_path, remove_orbit_path, remove_all_orbit_paths
+from .visualizer import draw_orbit_path, remove_orbit_path, remove_all_orbit_paths, start_live_update, stop_live_update
+
 
 
 class OrbitControlsExtension(omni.ext.IExt):
@@ -30,6 +37,7 @@ class OrbitControlsExtension(omni.ext.IExt):
         )
 
         self._register_context_menu()
+        start_live_update()
         print("[OrbitControls] started")
 
     def on_shutdown(self):
@@ -42,6 +50,7 @@ class OrbitControlsExtension(omni.ext.IExt):
         self._unregister_context_menu()
         try:
             remove_all_orbit_paths()
+            stop_live_update()
         except Exception:
             pass
         if self._ui:
@@ -50,14 +59,15 @@ class OrbitControlsExtension(omni.ext.IExt):
         print("[OrbitControls] shutdown")
 
     def _on_update(self, e):
-        if not self._viz_enabled:
-            return
-        self._frame_count += 1
-        if self._frame_count % self._viz_update_interval == 0:
-            self.refresh_viz()
+        pass
+        # if not self._viz_enabled:
+        #     return
+        # self._frame_count += 1
+        # if self._frame_count % self._viz_update_interval == 0:
+        #     self.refresh_viz()
     
     def _on_stage_event(self, e):
-        from omni.usd import StageEventType
+
         t = e.type
         # if e.type in (int(StageEventType.OPENED), int(StageEventType.CLOSED)):
         #     for p in list(self._svc.list_bodies()):
@@ -66,7 +76,6 @@ class OrbitControlsExtension(omni.ext.IExt):
             # Core already restored bodies - just reset viz and redraw
             self._viz_paths.clear()
             try:
-                from .visualizer import _body_colors
                 _body_colors.clear()
             except Exception:
                 pass
@@ -77,7 +86,6 @@ class OrbitControlsExtension(omni.ext.IExt):
             # Just clear viz tracking, don't touch service bodies
             self._viz_paths.clear()
             try:
-                from .visualizer import _body_colors
                 _body_colors.clear()
             except Exception:
                 pass            
@@ -115,36 +123,44 @@ class OrbitControlsExtension(omni.ext.IExt):
     #         self._ui = None
     #     print("[OrbitControls] shutdown")
 
-    def set_viz_enabled(self, enabled: bool):
-        self._viz_enabled = enabled
-        if not enabled:
-            remove_all_orbit_paths()
-            self._viz_paths.clear()
+    # def set_viz_enabled(self, enabled: bool):
+    #     self._viz_enabled = enabled
+    #     if enabled:
+    #         from .visualizer import set_live_update_enabled
+    #         set_live_update_enabled(True)
+    #         self.refresh_viz()  # draw immediately on enable
+    #     else:
+    #         from .visualizer import set_live_update_enabled
+    #         set_live_update_enabled(False)
+    #         remove_all_orbit_paths()
+    #         self._viz_paths.clear()
 
-    def refresh_viz(self, prim_path: str = None):
-        if not self._viz_enabled:
-            return
-        targets = [prim_path] if prim_path else list(self._svc.list_bodies())
-        for p in targets:
-            body = self._svc.get_body(p)
-            if not body:
-                continue
-            safe = p.replace("/", "_").lstrip("_")
-            curve_path = f"/OrbitViz/{safe}_path"
-            drawn = draw_orbit_path(
-                prim_path=p,
-                attractor_path=body.attractor_path,
-                mu=body.mu,
-                r0=body.r,
-                v0=body.v,
-                dt_sim=body.dt_sim,
-                curve_path=curve_path,
-            )
-            if drawn:
-                self._viz_paths[p] = drawn
+    # def refresh_viz(self, prim_path: str = None):
+    #     if not self._viz_enabled:
+    #         return
+    #     targets = [prim_path] if prim_path else list(self._svc.list_bodies())
+    #     for p in targets:
+    #         body = self._svc.get_body(p)
+    #         if not body:
+    #             continue
+    #         safe = p.replace("/", "_").lstrip("_")
+    #         curve_path = f"/OrbitViz/{safe}_path"
+    #         drawn = draw_orbit_path(
+    #             prim_path=p,
+    #             attractor_path=body.attractor_path,
+    #             mu=body.mu,
+    #             r0=body.r,
+    #             v0=body.v,
+    #             dt_sim=body.dt_sim,
+    #             curve_path=curve_path,
+    #         )
+    #         if drawn:
+    #             self._viz_paths[p] = drawn
 
     def remove_viz(self, prim_path: str):
+        from .visualizer import _curve_paths
         curve_path = self._viz_paths.pop(prim_path, None)
+        _curve_paths.pop(prim_path, None)  # ← stop live updater from redrawing it
         if curve_path:
             remove_orbit_path(curve_path, prim_path=prim_path)
 
@@ -168,7 +184,7 @@ class OrbitControlsExtension(omni.ext.IExt):
             path = str(prims[0].GetPath())
             attractor = getattr(self._svc, "last_selected_attractor", "/World/Sphere")
             self._svc.add_body_circular(path, attractor, mu=980.665, dt_sim=1/120, radius=25.0, plane="xy")
-            self.refresh_viz(path)
+
             print(f"[OrbitControls] Quick-added circular body: {path}")
 
         try:
@@ -198,17 +214,16 @@ class OrbitControlsExtension(omni.ext.IExt):
 
     def add_body_circular(self, prim_path, attractor_path, mu, dt_sim, radius, plane):
         self._svc.add_body_circular(prim_path, attractor_path, mu, dt_sim, radius, plane)
-        self.refresh_viz(prim_path)
         print("[OrbitControls] add circular:", prim_path, "around", attractor_path)
 
     def add_body_elements(self, prim_path, attractor_path, mu, dt_sim, a, e, inc, raan, argp, nu):
         self._svc.add_body_elements(prim_path, attractor_path, mu, dt_sim, a, e, inc, raan, argp, nu)
-        self.refresh_viz(prim_path)
+
         print("[OrbitControls] add elements:", prim_path, "around", attractor_path)
 
     def apply_impulse(self, prim_path, dv):
         self._svc.apply_impulse(prim_path, dv)
-        self.refresh_viz(prim_path)
+
         print("[OrbitControls] dv:", prim_path, dv)
 
     def dock(self, prim_path, offset):
@@ -217,7 +232,7 @@ class OrbitControlsExtension(omni.ext.IExt):
 
     def undock(self, prim_path):
         self._svc.clear_dock(prim_path)
-        self.refresh_viz(prim_path)
+
         print("[OrbitControls] undock:", prim_path)
 
     def enable_pd(self, prim_path, target_offset, kp, kd, a_max):
@@ -226,10 +241,30 @@ class OrbitControlsExtension(omni.ext.IExt):
 
     def disable_pd(self, prim_path):
         self._svc.clear_pd(prim_path)
-        self.refresh_viz(prim_path)
+
         print("[OrbitControls] pd off:", prim_path)
 
     def print_bodies(self):
         bodies = self._svc.list_bodies()
         print("[OrbitControls] bodies:", bodies)
         return bodies
+
+    def draw_selected_viz(self, prim_path: str):
+        body = self._svc.get_body(prim_path)
+        if not body:
+            print(f"[OrbitControls] draw_selected_viz: no body at {prim_path}")
+            return
+        safe = prim_path.replace("/", "_").lstrip("_")
+        curve_path = f"/OrbitViz/{safe}_path"
+        drawn = draw_orbit_path(
+            prim_path=prim_path,
+            attractor_path=body.attractor_path,
+            mu=body.mu,
+            r0=body.r,
+            v0=body.v,
+            dt_sim=body.dt_sim,
+            curve_path=curve_path,
+        )
+        print(f"[OrbitControls] draw_selected_viz: drew {drawn}")
+        if drawn:
+            self._viz_paths[prim_path] = drawn
