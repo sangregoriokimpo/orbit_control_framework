@@ -402,13 +402,20 @@ class ControlsUI:
                                 # ui.StringField(model=self._selected)
                                 # ui.Button("◎", width=28, clicked_fn=self._pick_selected,
                                 #           tooltip="Pick selected prim from viewport")
-                            with ui.HStack():
-                                ui.Button("Show Path",  clicked_fn=self._on_show_path)
-                                ui.Button("Hide Path",  clicked_fn=self._on_hide_path)
-                                ui.Button("Hide All",   clicked_fn=self._on_hide_all)
-                            with ui.HStack():
-                                ui.Button("Remove Body",   clicked_fn=self._on_remove)
-                                ui.Button("Refresh State", clicked_fn=self._refresh_state)
+
+                            '''
+                                DRAWING ORBIT PATHS IS BROKEN, I HAVE TO FIGURE OUT WHY
+                                DEPRECATING UNTIL I CAN FIX IT
+                            '''
+                            # with ui.HStack():
+                            #     ui.Button("Show Path",  clicked_fn=self._on_show_path)
+                            #     ui.Button("Hide Path",  clicked_fn=self._on_hide_path)
+                            #     ui.Button("Hide All",   clicked_fn=self._on_hide_all)
+                            # with ui.HStack():
+                            #     ui.Button("Remove Body",   clicked_fn=self._on_remove)
+                            #     ui.Button("Refresh State", clicked_fn=self._refresh_state)
+
+                            
                             # with ui.HStack():
                             #     self._viz_model = ui.SimpleBoolModel(False)
                             #     ui.CheckBox(model=self._viz_model)

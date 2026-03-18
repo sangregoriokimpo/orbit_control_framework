@@ -15,6 +15,7 @@ _body_colors: Dict[str, Gf.Vec3f] = {}
 _curve_paths: Dict[str, str] = {}
 _update_sub = None
 
+
 _PALETTE = [
     Gf.Vec3f(1.0,  0.35, 0.35),
     Gf.Vec3f(0.35, 0.75, 1.0),
@@ -28,6 +29,10 @@ _PALETTE = [
 _palette_index = 0
 _live_update_enabled = True
 
+_redraw_counters: Dict[str, int] = {}
+_REDRAW_INTERVAL = 30
+_REDRAW_INTERVAL_FREE = 60
+_REDRAW_INTERVAL_THRUST = 6
 def start_live_update():
     """Call once from extension on_startup to begin live orbit redraw."""
     global _update_sub
@@ -164,6 +169,7 @@ def remove_orbit_path(curve_path: str, prim_path: str = None):
         stage.RemovePrim(curve_path)
     if prim_path:
         _clear_color(prim_path)
+        _redraw_counters.pop(prim_path,None)
 
 
 def remove_all_orbit_paths():
@@ -188,12 +194,25 @@ def _on_live_update(_e):
         b = svc.get_body(prim_path)
         if b is None:
             continue
-        if not getattr(b, '_orbit_dirty', False):
-            continue
-        b._orbit_dirty = False
         curve_path = _curve_paths.get(prim_path)
         if curve_path is None:
             continue
+        if not getattr(b, '_orbit_dirty', False):
+            continue
+
+        thrust = getattr(b, 'thrust', (0.0, 0.0, 0.0))
+        thrusting = any(abs(t) > 1e-6 for t in thrust)
+
+        if thrusting:
+            _redraw_counters[prim_path] = 0
+            b._orbit_dirty = False
+        else:
+            _redraw_counters[prim_path] = _redraw_counters.get(prim_path, 0) + 1
+            if _redraw_counters[prim_path] < _REDRAW_INTERVAL_FREE:
+                continue
+            _redraw_counters[prim_path] = 0
+            b._orbit_dirty = False
+
         draw_orbit_path(
             prim_path=prim_path,
             attractor_path=b.attractor_path,
