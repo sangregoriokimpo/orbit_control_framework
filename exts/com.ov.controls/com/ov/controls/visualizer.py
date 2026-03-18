@@ -33,6 +33,11 @@ _redraw_counters: Dict[str, int] = {}
 _REDRAW_INTERVAL = 30
 _REDRAW_INTERVAL_FREE = 60
 _REDRAW_INTERVAL_THRUST = 6
+
+_N_POINTS_FREE = 256
+_N_POINTS_THRUST = 64
+
+
 def start_live_update():
     """Call once from extension on_startup to begin live orbit redraw."""
     global _update_sub
@@ -97,15 +102,26 @@ def _simulate_orbit_points(mu: float, r0: Vec3, v0: Vec3, n_points: int = 256) -
     rmag = math.sqrt(r0[0]**2 + r0[1]**2 + r0[2]**2)
     vmag = math.sqrt(v0[0]**2 + v0[1]**2 + v0[2]**2)
     if rmag < 1e-6 or vmag < 1e-6:
+        # print(f"[Viz] bailing: rmag={rmag} vmag={vmag}")
         return []
     energy = 0.5 * vmag**2 - mu / rmag
     if energy >= 0:
-        return []  # hyperbolic/escape trajectory — no closed orbit to draw
-    a = -mu / (2.0 * energy)
-    if a <= 0:
-        return []
-    period = 2.0 * math.pi * math.sqrt(a**3 / mu)
-    dt_step = period / n_points
+        dt_step = (3.0 * rmag / vmag) / n_points
+        # print(f"[Viz] bailing: energy={energy} (escape/hyperbolic)")
+        #return []  # hyperbolic/escape trajectory — no closed orbit to draw
+    else:
+        a = -mu / (2.0 * energy)
+        if a <= 0:
+            return []
+        period = 2.0 * math.pi * math.sqrt(a**3 / mu)
+        dt_step = period / n_points
+    # a = -mu / (2.0 * energy)
+    # if a <= 0:
+    #     # print(f"[Viz] bailing: a={a}")
+
+    #     return []
+    # period = 2.0 * math.pi * math.sqrt(a**3 / mu)
+    # dt_step = period / n_points
 
     dyn = TwoBodyRK4(mu=mu, center=(0.0, 0.0, 0.0))
     r, v = r0, v0
@@ -152,8 +168,14 @@ def draw_orbit_path(prim_path: str, attractor_path: str, mu: float, r0: Vec3, v0
     curves = _get_or_create_curves_prim(stage, curve_path)
     curves.CreatePointsAttr(gf_points)
     curves.CreateCurveVertexCountsAttr(Vt.IntArray([len(gf_points)]))
+    energy = 0.5 * (v0[0]**2 + v0[1]**2 + v0[2]**2) - mu / math.sqrt(v0[0]**2 + v0[1]**2 + v0[2]**2 + 1e-12)
+    rmag = math.sqrt(r0[0]**2 + r0[1]**2 + r0[2]**2)
+    vmag = math.sqrt(v0[0]**2 + v0[1]**2 + v0[2]**2)
+    energy = 0.5 * vmag**2 - mu / rmag
+    is_escape = energy >= 0
+
     curves.CreateTypeAttr("linear")
-    curves.CreateWrapAttr(UsdGeom.Tokens.periodic)
+    curves.CreateWrapAttr(UsdGeom.Tokens.nonperiodic if is_escape else UsdGeom.Tokens.periodic)
 
     _apply_color(stage, curve_path, _get_color(prim_path))
 
@@ -195,6 +217,8 @@ def _on_live_update(_e):
         if b is None:
             continue
         curve_path = _curve_paths.get(prim_path)
+        print(f"[Viz] {prim_path} curve={curve_path} dirty={getattr(b,'_orbit_dirty',False)} thrust={getattr(b,'thrust',(0,0,0))}")
+
         if curve_path is None:
             continue
         if not getattr(b, '_orbit_dirty', False):
@@ -206,14 +230,29 @@ def _on_live_update(_e):
         if thrusting:
             _redraw_counters[prim_path] = 0
             b._orbit_dirty = False
+            draw_orbit_path(
+                prim_path=prim_path,
+                attractor_path=b.attractor_path,
+                mu=b.mu, r0=b.r, v0=b.v, dt_sim=b.dt_sim,
+                curve_path=curve_path,
+                n_points=_N_POINTS_THRUST,
+            )
         else:
             _redraw_counters[prim_path] = _redraw_counters.get(prim_path, 0) + 1
             if _redraw_counters[prim_path] < _REDRAW_INTERVAL_FREE:
                 continue
             _redraw_counters[prim_path] = 0
             b._orbit_dirty = False
+            draw_orbit_path(
+                prim_path=prim_path,
+                attractor_path=b.attractor_path,
+                mu=b.mu, r0=b.r, v0=b.v, dt_sim=b.dt_sim,
+                curve_path=curve_path,
+                n_points=_N_POINTS_FREE,
+            )
 
-        draw_orbit_path(
+
+        result = draw_orbit_path(
             prim_path=prim_path,
             attractor_path=b.attractor_path,
             mu=b.mu,
@@ -222,6 +261,9 @@ def _on_live_update(_e):
             dt_sim=b.dt_sim,
             curve_path=curve_path,
         )
+
+        if result is None:
+            b._orbit_dirty = True
 
 # def _on_update(self, _e):
 #     svc = get_orbit_service()
