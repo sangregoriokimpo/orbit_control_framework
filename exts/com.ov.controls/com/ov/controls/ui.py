@@ -214,6 +214,19 @@ class ControlsUI:
     def _build_attractor_picker_elem(self):
         self._build_attractor_picker_into("_attractor_frame_elem")
 
+    def _on_set_viz_interval(self):
+        from .visualizer import _REDRAW_INTERVAL_FREE
+        import com.ov.controls.visualizer as viz
+        val = max(1, int(self._viz_interval_model.get_value_as_int()))
+        viz._REDRAW_INTERVAL_FREE = val
+        self._set_status(f"Viz interval set to {val} frames")
+
+    def _on_set_viz_points(self):
+        import com.ov.controls.visualizer as viz
+        val = max(16, int(self._viz_points_model.get_value_as_int()))
+        viz._N_POINTS_FREE = val
+        self._set_status(f"Path points set to {val}")
+
     def _build_body_picker_into(self, frame_attr: str):
         prims = self._get_stage_prims() or ["/World/Cube"]
         current = self._body_path.get_value_as_string()
@@ -398,10 +411,18 @@ class ControlsUI:
                         with ui.VStack(spacing=6):
                             self._selector_frame = ui.Frame()
                             self._selector_frame.set_build_fn(self._build_selector)
+                            self._viz_interval_model = ui.SimpleIntModel(60)
+                            self._viz_points_model = ui.SimpleIntModel(256)
                                 # ui.Label("selected prim path", width=150)
                                 # ui.StringField(model=self._selected)
                                 # ui.Button("◎", width=28, clicked_fn=self._pick_selected,
                                 #           tooltip="Pick selected prim from viewport")
+
+                            '''
+                                DRAWING ORBIT PATHS IS BROKEN, I HAVE TO FIGURE OUT WHY
+                                DEPRECATING UNTIL I CAN FIX IT
+                            '''
+                            
                             with ui.HStack():
                                 ui.Button("Show Path",  clicked_fn=self._on_show_path)
                                 ui.Button("Hide Path",  clicked_fn=self._on_hide_path)
@@ -409,6 +430,16 @@ class ControlsUI:
                             with ui.HStack():
                                 ui.Button("Remove Body",   clicked_fn=self._on_remove)
                                 ui.Button("Refresh State", clicked_fn=self._refresh_state)
+                            with ui.HStack():
+                                ui.Label("Redraw interval (frames)", width=180)
+                                ui.IntField(model=self._viz_interval_model)
+                                ui.Button("Set", width=40, clicked_fn=self._on_set_viz_interval)
+                            with ui.HStack():
+                                ui.Label("Path points (quality)", width=180)
+                                ui.IntField(model=self._viz_points_model)
+                                ui.Button("Set", width=40, clicked_fn=self._on_set_viz_points)
+
+                            
                             # with ui.HStack():
                             #     self._viz_model = ui.SimpleBoolModel(False)
                             #     ui.CheckBox(model=self._viz_model)
